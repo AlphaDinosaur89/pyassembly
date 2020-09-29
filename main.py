@@ -170,7 +170,12 @@ while True:
 		second: str = currline.split(" ")[1]
 		INP(second)
 	elif cmd == "LAB":
-		pass
+		while True:
+			currline = line[i]
+			if currline.split(" ")[0] == "LBD":
+				break
+
+			i += 1
 	elif cmd == "JMP":
 		second: str = currline.split(" ")[1]
 		JMP(second)
@@ -193,6 +198,8 @@ while True:
 		SAV()
 	elif cmd == "SWP":
 		SWP()
+	elif cmd == "LBD":
+		pass
 	elif cmd in "\n":
 		pass
 	elif cmd in " ":
