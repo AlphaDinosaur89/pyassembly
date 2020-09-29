@@ -1,6 +1,11 @@
 #!/usr/bin/env python3.8
+"""
+TIS-100 like assembly interpreter
+made in python
+"""
 
 from sys import exit, argv
+from os import path
 
 labels = {}
 variables = {
@@ -8,6 +13,14 @@ variables = {
 	"BAK": ""
 }
 current_line = 0
+
+if len(argv) < 2:
+	print(argv[0], "[FILE]")
+	exit(1)
+
+if not path.isfile(argv[1]):
+	print("File:", argv[1], "\nNot a file or file not found")
+	exit(1)
 
 f = open(argv[1], "r")
 
