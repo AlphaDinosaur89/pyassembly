@@ -5,7 +5,7 @@ made in python
 """
 
 from sys import exit, argv
-from os import path
+from os.path import isfile
 
 labels = {}
 variables = {
@@ -18,7 +18,7 @@ if len(argv) < 2:
 	print(argv[0], "[FILE]")
 	exit(1)
 
-if not path.isfile(argv[1]):
+if not isfile(argv[1]):
 	print("File:", argv[1], "\nNot a file or file not found")
 	exit(1)
 
@@ -132,6 +132,7 @@ def SWP():
 
 def get_command(line: str):
 		first_word = line.split(" ")[0]
+		first_word = first_word.split("\n")[0]
 		return first_word
 
 line = f.readlines()
@@ -162,7 +163,7 @@ while True:
 
 	currline = line[i]
 	cmd = get_command(line[i])
-	if cmd == ";":
+	if line[i].startswith(";"):
 		pass
 	elif cmd == "MOV":
 		second: str = currline.split(" ")[1]
@@ -184,6 +185,8 @@ while True:
 		INP(second)
 	elif cmd == "LAB":
 		while True:
+			if i >= len(line):
+				break
 			currline = line[i]
 			if currline.split(" ")[0] == "LBD":
 				break
