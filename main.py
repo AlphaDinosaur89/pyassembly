@@ -4,13 +4,17 @@ TIS-100 like assembly interpreter
 made in python
 """
 
-from sys import exit, argv
+from sys import exit, argv, stderr, platform
 from os.path import isfile
+from os import system
+from time import time
+from random import randint
 
 labels = {}
 variables = {
 	"ACC": 0,
-	"BAK": ""
+	"BAK": 0,
+	"RANDOM": randint(0, 32767)
 }
 current_line = 0
 
@@ -25,7 +29,8 @@ if not isfile(argv[1]):
 f = open(argv[1], "r")
 
 # Functions to add the logic of the commands
-def MOV(src, dst, lineno):
+def MOV(src, dst, lineno): # If the variable does not exists it creates one
+	isVar = False
 	if src == "BAK" or dst == "BAK":
 		return
 
@@ -39,25 +44,49 @@ def MOV(src, dst, lineno):
 		variables[dst] = eval(src)
 	else:
 		if src.isalpha():
+			isVar = True
 			variables[dst] = str(variables[src])
 		else:
 			variables[dst] = eval(src)
 
+	if isVar:
+		try:
+			variables[src]
+		except KeyError:
+			print("Variable:", src, "\nnot found\nline:", lineno+1)
+			exit(1)
+
 	if dst == "OUT":
 		if src[0] == "\"" or src[0] == "'":
-			var = False
+			string = False
 		else:
-			var = True
+			string = True
 
 		src = src.strip("\"'")
 
-		if var:	
+		if string:	
 			if src.isalpha():
-				print(variables[src])
+				print(variables[src], end="")
 			else:
-				print(src)
+				print(src, end="")
 		else:
-			print(src)
+			print(src, end="")
+	elif dst == "ERR":
+		printTime = False
+		if src[0] == "\"" or src[0] == "'":
+			string = False
+		else:
+			string = True
+
+		src = src.strip("\"'")
+
+		if string:	
+			if src.isalpha():
+				stderr.write(src)
+			else:
+				stderr.write(src)
+		else:
+			stderr.write(src)
 
 
 def ADD(val, lineno):
@@ -67,62 +96,110 @@ def ADD(val, lineno):
 		f.close()
 		exit(1)
 
+	if type(variables["ACC"]) is str:
+		variables["ACC"] = 0
+
+	variables["ACC"] = int(variables["ACC"])
 	if val.isalpha():
 		variables["ACC"] += int(variables[val])
 	else:
 		variables["ACC"] += int(val)
 
 def SUB(val, lineno):
+	val = val.strip("\n")
 	if val[0] == "\"" or val[0] == "'" or val[-1] == "\"" or val[-1] == "'":
 		print("String not allowed in sub command\nline:", lineno+1)
 		f.close()
 		exit(1)
 
-	variables["ACC"] -= int(val)
+	variables["ACC"] = int(variables["ACC"])
+	if type(variables["ACC"]) is str:
+		variables["ACC"] = 0
+
+	variables["ACC"] = int(variables["ACC"])
+	if val.isalpha():
+		variables["ACC"] -= int(variables[val])
+	else:
+		variables["ACC"] -= int(val)
 
 def INP(var):
 	var = var.strip("\n")
 	variables[var] = input()
 
-def LAB(label, lineno):
+def LAB(label, lineno): # Declares a label with the value as the line number
 	label = label.strip("\n")
 	labels[label] = lineno
 
+# These that jump gets the value of the label name provided
+# And sets the current line being parsed to the label line
 def JMP(label):
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+		
 	global i
 	label = label.strip("\n")
 	i = labels[label]
 
 def JEZ(label):
-	if variables["ACC"] == 0:
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+		
+	if int(variables["ACC"]) == 0:
 		global i
 		label = label.strip("\n")
 		i = labels[label]
 
 def JNZ(label):
-	if variables["ACC"] != 0:
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+		
+	if int(variables["ACC"]) != 0:
 		global i
 		label = label.strip("\n")
 		i = labels[label]
 
 def JGZ(label):
-	if variables["ACC"] > 0:
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+		
+	if int(variables["ACC"]) > 0:
 		global i
 		label = label.strip("\n")
 		i = labels[label]
 
 def JLZ(label):
-	if variables["ACC"] < 0:
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	if int(variables["ACC"]) < 0:
 		global i
 		label = label.strip("\n")
 		i = labels[label]
 
+# Jumps a amount of lines in the offset variable
+# By setting the current line being parsed
+# If the value is negative it jumps back
 def JRO(offset):
 	global i
 	i += offset
 
 def SAV():
-	variables["ACC"] = BAK
+	variables["ACC"] = variables["BAK"]
 
 def SWP():
 	ACC = variables["ACC"]
@@ -130,16 +207,109 @@ def SWP():
 	variables["ACC"] = BAK
 	variables["BAK"] = ACC
 
+def MUL(val, lineno):
+	val = val.strip("\n")
+	if val[0] == "\"" or val[0] == "'" or val[-1] == "\"" or val[-1] == "'":
+		print("String not allowed in mul command\nline:", lineno+1)
+		f.close()
+		exit(1)
+
+	variables["ACC"] = int(variables["ACC"])
+	if type(variables["ACC"]) is str:
+		variables["ACC"] = 0
+
+	variables["ACC"] = int(variables["ACC"])
+	if val.isalpha():
+		variables["ACC"] *= int(variables[val])
+	else:
+		variables["ACC"] *= int(val)
+
+def DIV(val, lineno):
+	val = val.strip("\n")
+	if val[0] == "\"" or val[0] == "'" or val[-1] == "\"" or val[-1] == "'":
+		print("String not allowed in div command\nline:", lineno+1)
+		f.close()
+		exit(1)
+
+	variables["ACC"] = int(variables["ACC"])
+	if type(variables["ACC"]) is str:
+		variables["ACC"] = 0
+
+	variables["ACC"] = int(variables["ACC"])
+	if val.isalpha():
+		variables["ACC"] /= int(variables[val])
+	else:
+		variables["ACC"] /= int(val)
+
+def TET(txt, txt2, label, lineno):
+	label = label.strip("\n")
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	global i
+	try:
+		variables[txt]
+	except KeyError:
+		print("Variable:", txt, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	try:
+		variables[txt2]
+	except KeyError:
+		print("Variable:", txt2, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	if variables[txt] == variables[txt2]:
+		i = labels[label]
+
+def TNT(txt, txt2, label, lineno):
+	label = label.strip("\n")
+	try:
+		labels[label]
+	except KeyError:
+		print("Label:", label, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	global i
+	try:
+		variables[txt]
+	except KeyError:
+		print("Variable:", txt, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	try:
+		variables[txt2]
+	except KeyError:
+		print("Variable:", txt2, "\nNot found\nline:", lineno+1)
+		exit(1)
+
+	if variables[txt] != variables[txt2]:
+		i = labels[label]
+
+def CLR():
+	if platform == "win32" or platform == "cygwin" or platform == "msys":
+		system("cls")
+	else:
+		system("clear")
+
+def NEG():
+	acc = eval("-" + str(variables["ACC"]))
+	variables["ACC"] = int(acc)
+
 def get_command(line: str):
 		first_word = line.split(" ")[0]
 		first_word = first_word.split("\n")[0]
 		return first_word
 
+start_time = time()
 line = f.readlines()
 
 i = 0
 # Parse file
-while True:
+while True: # This loop adds the labels to the labels dictionary and the value is the line number
 
 	if i >= len(line):
 		break
@@ -158,6 +328,8 @@ i = 0
 while True:
 
 	if i >= len(line):
+		elapsed_time = time() - start_time
+		print("\n-----------------------\nProgram closed in:", str(elapsed_time)[0:7])
 		f.close()
 		exit(0)
 
@@ -166,9 +338,15 @@ while True:
 	if line[i].startswith(";"):
 		pass
 	elif cmd == "MOV":
-		second: str = currline.split(" ")[1]
+		# Made this so we can use spaces on the mov command
+		scdi = 0
+		for l in currline:
+			if l == "|":
+				second: str = currline[4:scdi-1]
+				dstnum = scdi + 2
+			scdi += 1
 		try:
-			third: str = currline.split(" ")[2]
+			third: str = currline[dstnum:]
 		except:
 			print("Missing target\nline:", i+1, "\n-----------------------\n%s-----------------------" % line[i])
 			f.close()
@@ -184,11 +362,19 @@ while True:
 		second: str = currline.split(" ")[1]
 		INP(second)
 	elif cmd == "LAB":
+		labcount = 0
 		while True:
 			if i >= len(line):
 				break
 			currline = line[i]
-			if currline.split(" ")[0] == "LBD":
+			first_word = currline.split(" ")
+			first_word = currline.split("\n")
+
+			if first_word[0] == "LAB":
+				labcount += 1
+			elif first_word[0] == "LBD" and labcount != 0:
+				labcount -= 1
+			elif first_word[0] == "LBD" and labcount == 0:
 				break
 
 			i += 1
@@ -216,6 +402,26 @@ while True:
 		SWP()
 	elif cmd == "LBD":
 		pass
+	elif cmd == "NWL":
+		print()
+	elif cmd == "EXT":
+		second: str = currline.split(" ")[1]
+		second = second.strip("\n")
+		exit(eval(second))
+	elif cmd == "TET":
+		second: str = currline.split(" ")[1]
+		third: str = currline.split(" ")[2]
+		fourth: str = currline.split(" ")[3]
+		TET(second, third, fourth, i)
+	elif cmd == "TNT":
+		second: str = currline.split(" ")[1]
+		third: str = currline.split(" ")[2]
+		fourth: str = currline.split(" ")[3]
+		TNT(second, third, fourth, i)
+	elif cmd == "CLR":
+		CLR()
+	elif cmd == "NEG":
+		NEG()
 	elif cmd in "\n":
 		pass
 	elif cmd in " ":
@@ -228,3 +434,4 @@ while True:
 		exit(1)
 
 	i += 1
+	variables["RANDOM"] = randint(0, 32767)
