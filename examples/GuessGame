@@ -1,0 +1,43 @@
+MOV "Try to guess my number between 0 and 32767" | OUT
+MOV RANDOM | NUM
+MOV NUM | ACC
+
+JMP MAIN
+LAB MAIN
+NWL
+NWL
+MOV "Guess: " | OUT
+INP GUESS
+NWL
+MOV NUM | ACC
+SUB GUESS
+JEZ EQUAL
+MOV "Last Guess: " | OUT
+MOV GUESS | OUT
+NWL
+JGZ LOWER
+JLZ GREATER
+JMP MAIN
+LBD
+
+LAB EQUAL
+MOV "You win!" | OUT
+NWL
+MOV "The number was: " | OUT
+MOV NUM | OUT
+NWL
+JMP END
+JBD
+
+LAB GREATER
+MOV "Number is lower" | OUT
+JMP MAIN
+LBD
+
+LAB LOWER
+MOV "Number is higher" | OUT
+JMP MAIN
+LBD
+
+LAB END
+LBD
