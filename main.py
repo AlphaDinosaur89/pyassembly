@@ -6,15 +6,21 @@ made in python
 
 from sys import exit, argv, stderr, platform
 from os.path import isfile
-from os import system
+from os import system, popen
 from time import time
 from random import randint
 
+rows, columns = popen('stty size', 'r').read().split()
 labels = {}
 variables = {
 	"ACC": 0,
 	"BAK": 0,
-	"RANDOM": randint(0, 32767)
+	"RANDOM": randint(0, 32767),
+	"XPOS": 0,
+	"YPOS": 0,
+	"CUR": "",
+	"WIDTH": columns,
+	"HEIGHT": rows
 }
 current_line = 0
 
@@ -28,13 +34,19 @@ if not isfile(argv[1]):
 
 f = open(argv[1], "r")
 
+def move(y, x):
+	print("\033[%d;%dH" % (y, x), end="")
+
 # Functions to add the logic of the commands
 def MOV(src, dst, lineno): # If the variable does not exists it creates one
+	dst = dst.strip("\n")
 	isVar = False
 	if src == "BAK" or dst == "BAK":
 		return
+	elif src == "CUR" and dst == "XYPOS":
+		move(variables["YPOS"], variables["XPOS"])
+		return
 
-	dst = dst.strip("\n")
 	if src[0] == "\"" or src[0] == "'":
 		if src[-1] != "\"" and src[-1] != "'":
 			print("Did you forgot to close the quotes?\nline:", lineno+1)
@@ -132,7 +144,8 @@ def LAB(label, lineno): # Declares a label with the value as the line number
 
 # These that jump gets the value of the label name provided
 # And sets the current line being parsed to the label line
-def JMP(label):
+def JMP(label, lineno):
+	label = label.strip("\n")
 	try:
 		labels[label]
 	except KeyError:
@@ -140,10 +153,10 @@ def JMP(label):
 		exit(1)
 		
 	global i
-	label = label.strip("\n")
 	i = labels[label]
 
-def JEZ(label):
+def JEZ(label, lineno):
+	label = label.strip("\n")
 	try:
 		labels[label]
 	except KeyError:
@@ -155,7 +168,8 @@ def JEZ(label):
 		label = label.strip("\n")
 		i = labels[label]
 
-def JNZ(label):
+def JNZ(label, lineno):
+	label = label.strip("\n")
 	try:
 		labels[label]
 	except KeyError:
@@ -167,7 +181,8 @@ def JNZ(label):
 		label = label.strip("\n")
 		i = labels[label]
 
-def JGZ(label):
+def JGZ(label, lineno):
+	label = label.strip("\n")
 	try:
 		labels[label]
 	except KeyError:
@@ -179,7 +194,8 @@ def JGZ(label):
 		label = label.strip("\n")
 		i = labels[label]
 
-def JLZ(label):
+def JLZ(label, lineno):
+	label = label.strip("\n")
 	try:
 		labels[label]
 	except KeyError:
@@ -380,19 +396,19 @@ while True:
 			i += 1
 	elif cmd == "JMP":
 		second: str = currline.split(" ")[1]
-		JMP(second)
+		JMP(second, i)
 	elif cmd == "JEZ":
 		second: str = currline.split(" ")[1]
-		JEZ(second)
+		JEZ(second, i)
 	elif cmd == "JNZ":
 		second: str = currline.split(" ")[1]
-		JNZ(second)
+		JNZ(second, i)
 	elif cmd == "JGZ":
 		second: str = currline.split(" ")[1]
-		JGZ(second)
+		JGZ(second, i)
 	elif cmd == "JLZ":
 		second: str = currline.split(" ")[1]
-		JLZ(second)
+		JLZ(second, i)
 	elif cmd == "JRO":
 		second: str = currline.split(" ")[1]
 		JRO(int(second))
@@ -422,6 +438,12 @@ while True:
 		CLR()
 	elif cmd == "NEG":
 		NEG()
+	elif cmd == "MUL":
+		second: str = currline.split(" ")[1]
+		MUL(second, i)
+	elif cmd == "DIV":
+		second: str = currline.split(" ")[1]
+		DIV(second, i)
 	elif cmd in "\n":
 		pass
 	elif cmd in " ":
